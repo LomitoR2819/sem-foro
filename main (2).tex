@@ -1,0 +1,778 @@
+\documentclass{article}
+\usepackage{graphicx} % Required for inserting images
+\usepackage[spanish]{babel}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{tikz}
+\usetikzlibrary{shapes, arrows, positioning, calc}
+\usepackage[utf8]{inputenc}
+\usepackage{enumitem}
+\usepackage[margin=1in]{geometry}
+\title{practica4}
+\author{Abraham Quintero\\ Jesus Contreras}
+\date{July 2025}
+
+\begin{document}
+
+\maketitle
+\section{}
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[
+    etapa/.style={rectangle, draw=blue!50!black, thick, fill=blue!10, 
+                 minimum width=3cm, minimum height=1.5cm, text centered, 
+                 rounded corners, font=\small\sffamily},
+    flecha/.style={->, >=stealth, thick, blue!50!black},
+    titulo/.style={text width=12cm, text centered, font=\large\bfseries\sffamily},
+    explicacion/.style={text width=10cm, align=left, font=\small\sffamily}
+]
+
+% Título
+\node[titulo] at (0, 5) {Ciclo de Atención a una Interrupción de Hardware};
+
+% Nodos del proceso principal
+\node[etapa] (evento) at (-5, 3) {1. Evento Externo \\ (Hardware)};
+\node[etapa] (senal) at (0, 3) {2. Señal de \\ Interrupción al CPU};
+\node[etapa] (fin) at (5, 3) {3. Fin de \\ Instrucción Actual};
+
+% Nodos del proceso de atención
+\node[etapa] (salto) at (5, 0) {4. Salto al \\ Manejador (ISR)};
+\node[etapa] (ejecucion) at (0, 0) {5. Ejecución \\ de la Rutina};
+\node[etapa] (retorno) at (-5, 0) {6. Retorno al \\ Programa};
+
+% Flechas del flujo principal
+\draw[flecha] (evento) -- (senal);
+\draw[flecha] (senal) -- (fin);
+\draw[flecha] (fin) -- (salto);
+\draw[flecha] (salto) -- (ejecucion);
+\draw[flecha] (ejecucion) -- (retorno);
+
+% Flecha de retorno circular
+\draw[flecha] (retorno.south) .. controls +(-1,-1) and +(-1,1) .. (evento.west);
+
+% Línea divisoria
+\draw[dashed, gray!50, thick] (-6.5,-1.5) -- (6.5,-1.5);
+
+% Explicación
+\node[explicacion, anchor=north west] at (-6.5,-2) {
+\textbf{Explicación detallada del ciclo:}\\
+\begin{itemize}
+    \item[1.] Ocurre un evento físico (dispositivo, timer, etc.)
+    \item[2.] El hardware genera señal de interrupción (IRQ)
+    \item[3.] CPU termina instrucción actual y guarda estado (PC, registros)
+    \item[4.] Salto a ISR mediante vector de interrupciones
+    \item[5.] Ejecución del manejador (atención al dispositivo)
+    \item[6.] Restauración del estado y retorno al programa original
+\end{itemize}
+};
+
+% Etiquetas de las fases
+\node[blue!50!black, font=\small\sffamily] at (0, 4.2) {\textbf{Generación de la Interrupción}};
+\node[blue!50!black, font=\small\sffamily] at (0, -0.8) {\textbf{Atención de la Interrupción}};
+
+\end{tikzpicture}
+\caption{Diagrama del ciclo completo de atención a interrupciones hardware}
+\end{figure}
+\section{Comparación entre Gestión de E/S por Sondeo e Interrupciones}
+\subsection{Método de Sondeo (Polling)}
+
+\textbf{Funcionamiento:}
+El CPU verifica constantemente el estado de los dispositivos mediante un bucle activo. En cada iteración, comprueba si el dispositivo necesita atención, consumiendo ciclos de procesador continuamente.
+
+\textbf{Ventajas:}
+\begin{itemize}[leftmargin=*]
+    \item Implementación simple y directa
+    \item Comportamiento determinista (ideal para sistemas de tiempo real críticos)
+    \item No requiere hardware adicional
+    \item Fácil de depurar y monitorear
+\end{itemize}
+
+\textbf{Desventajas:}
+\begin{itemize}[leftmargin=*]
+    \item Ineficiencia energética (CPU siempre activo)
+    \item Desperdicio significativo de ciclos de procesamiento
+    \item Latencia dependiente de la frecuencia de verificación
+    \item Escalabilidad limitada con múltiples dispositivos
+\end{itemize}
+
+\textbf{Ejemplo típico en código:}
+El CPU ejecuta un bucle que verifica un registro de estado del dispositivo, continuando con el procesamiento solo cuando detecta que los datos están listos.
+
+\subsection{Método por Interrupciones}
+
+\textbf{Funcionamiento:}
+Los dispositivos generan señales de interrupción cuando requieren atención. El CPU suspende su actividad actual, salva el contexto, ejecuta una rutina de servicio (ISR) específica para atender el dispositivo, y luego restaura el contexto para continuar.
+
+\textbf{Ventajas:}
+\begin{itemize}[leftmargin=*]
+    \item Máxima eficiencia del CPU (activo solo cuando es necesario)
+    \item Bajo consumo energético
+    \item Respuesta inmediata a eventos
+    \item Escalabilidad óptima para múltiples dispositivos
+    \item Priorización flexible de eventos
+\end{itemize}
+
+\textbf{Desventajas:}
+\begin{itemize}[leftmargin=*]
+    \item Mayor complejidad de implementación
+    \item Overhead por gestión de contexto (salvar/restaurar registros)
+    \item Requiere hardware especializado (controlador de interrupciones)
+    \item Comportamiento menos predecible en términos temporales
+\end{itemize}
+
+\textbf{Ejemplo típico:}
+Cuando un dispositivo como un teclado tiene datos disponibles, interrumpe al CPU, que ejecuta una rutina específica para leer el buffer de entrada antes de retomar la tarea previa.
+
+\subsection{Diferencias Clave}
+
+\textbf{Uso del CPU:}
+El sondeo mantiene al CPU ocupado verificando estados incluso cuando no hay trabajo real que hacer, mientras que las interrupciones permiten que el procesador se dedique a otras tareas hasta que sea realmente necesario atender un dispositivo.
+
+\textbf{Latencia:}
+En el sondeo, el tiempo de respuesta depende directamente de la frecuencia con la que se verifica el dispositivo. Con interrupciones, la latencia está determinada principalmente por el hardware y es generalmente más consistente.
+
+\textbf{Implementación:}
+El sondeo puede implementarse con código mínimo y sin soporte hardware especial. Las interrupciones requieren mecanismos para salvar/restaurar contexto, vectores de interrupción y rutinas de servicio bien definidas.
+
+\textbf{Escalabilidad:}
+Mientras que agregar más dispositivos en un sistema por sondeo ralentiza proporcionalmente el rendimiento, las interrupciones permiten manejar múltiples dispositivos eficientemente mediante prioridades y manejo adecuado de colas.
+
+\subsection{Recomendaciones de Uso}
+
+\textbf{Use sondeo cuando:}
+\begin{itemize}[leftmargin=*]
+    \item Los tiempos de respuesta del dispositivo son extremadamente rápidos
+    \item Se requiere comportamiento completamente predecible
+    \item Los recursos hardware son muy limitados
+    \item La simplicidad de implementación es prioritaria
+\end{itemize}
+
+\textbf{Prefiera interrupciones cuando:}
+\begin{itemize}[leftmargin=*]
+    \item Los dispositivos tienen tiempos de respuesta variables o largos
+    \item La eficiencia energética es importante
+    \item El sistema debe manejar múltiples dispositivos concurrentemente
+    \item Se necesita máxima utilización del CPU para otras tareas
+\end{itemize}
+\section{Ventajas del Uso de Interrupciones}
+
+Las interrupciones ofrecen importantes beneficios en la gestión eficiente del procesador:
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Maximización del tiempo útil:}
+    \begin{itemize}
+        \item El procesador puede ejecutar otras tareas mientras espera eventos de E/S
+        \item No consume ciclos verificando dispositivos innecesariamente
+        \item Aprovechamiento óptimo de la capacidad de cálculo
+    \end{itemize}
+    
+    \item \textbf{Reducción del consumo energético:}
+    \begin{itemize}
+        \item Permite poner el procesador en estados de bajo consumo durante esperas
+        \item Elimina el gasto energético de bucles de sondeo activos
+        \item Ideal para sistemas con restricciones de energía (móviles, embebidos)
+    \end{itemize}
+    
+    \item \textbf{Respuesta inmediata a eventos:}
+    \begin{itemize}
+        \item Atención en tiempo real a dispositivos cuando lo requieren
+        \item Latencia predecible determinada por el hardware
+        \item No depende de frecuencias de muestreo como en el sondeo
+    \end{itemize}
+    
+    \item \textbf{Escalabilidad con múltiples dispositivos:}
+    \begin{itemize}
+        \item Manejo eficiente de numerosos periféricos simultáneamente
+        \item Priorización inteligente mediante controlador de interrupciones
+        \item El costo computacional no aumenta linealmente con más dispositivos
+    \end{itemize}
+    
+    \item \textbf{Arquitectura más limpia:}
+    \begin{itemize}
+        \item Separación clara entre código principal y rutinas de servicio
+        \item Mejor organización del flujo del programa
+        \item Más fácil de mantener y ampliar funcionalidades
+    \end{itemize}
+\end{itemize}
+
+\subsection{Impacto en el Rendimiento}
+
+El uso de interrupciones mejora significativamente el rendimiento del sistema porque:
+
+\begin{itemize}[leftmargin=*]
+    \item Elimina el \textit{overhead} por verificación constante de estados
+    \item Reduce los conflictos por acceso a buses de E/S
+    \item Permite paralelismo real entre cómputo y operaciones de E/S
+    \item Facilita la implementación de sistemas multitarea
+\end{itemize}
+\section{Registros para Gestión de Interrupciones en MIPS32}
+\subsection{Registros del Coprocesador 0 (CP0)}
+
+El conjunto de instrucciones MIPS32 utiliza registros especiales del Coprocesador 0 para gestionar interrupciones. Los principales son:
+
+\subsection{Status Register (SR - \$12)}
+Registro de estado con los siguientes campos relevantes:
+\begin{itemize}
+\item IE (bit 0): Interrupt Enable - Habilita globalmente las interrupciones cuando está a 1
+\item EXL (bit 1): Exception Level - Indica que se está ejecutando una excepción cuando está a 1
+\item IM (bits 15-8): Interrupt Mask - Habilita interrupciones específicas (1=habilitada)
+\item KSU (bits 4-3): Kernel/Supervisor/User Mode - Indica el nivel de privilegio actual
+\end{itemize}
+
+\subsection{Cause Register (\$13)}
+Registro de causa con los siguientes campos:
+\begin{itemize}
+\item IP (bits 15-8): Interrupt Pending - Muestra qué interrupciones están pendientes
+\item ExcCode (bits 6-2): Exception Code - Identifica el tipo de excepción (6 para interrupción hardware)
+\end{itemize}
+
+\subsection{EPC Register (\$14)}
+Registro que almacena el Program Counter (PC) en el momento de ocurrir la interrupción, permitiendo retornar a la instrucción correcta después de atenderla.
+
+\subsection{Config Register (\$16)}
+Registro de configuración del sistema que puede afectar el manejo de interrupciones, aunque su uso principal es para configuración general del procesador.
+
+\subsection{Ejemplo de Configuración}
+
+Para habilitar interrupciones en MIPS32 se debe:
+
+1. Configurar los bits IM en el registro Status para habilitar las interrupciones deseadas
+2. Poner a 1 el bit IE en el registro Status para habilitar globalmente las interrupciones
+3. Configurar el vector de interrupciones en memoria
+4. Implementar las rutinas de servicio de interrupción (ISR)
+
+\subsection{Flujo de Atención de Interrupciones}
+
+Cuando ocurre una interrupción:
+
+1. El procesador completa la instrucción actual en ejecución
+2. Guarda el PC en el registro EPC
+3. Pone a 1 el bit EXL en el registro Status
+4. Salta a la dirección del vector de interrupciones
+5. La rutina ISR debe:
+   - Identificar la fuente de interrupción (leyendo Cause)
+   - Atender el dispositivo que generó la interrupción
+   - Limpiar la condición de interrupción
+   - Usar la instrucción ERET para retornar
+
+La instrucción ERET restaura el estado anterior poniendo EXL a 0 y retomando la ejecución en la dirección almacenada en EPC.
+\section{Preservación del Contexto en Rutinas de Interrupción}
+\subsection{Necesidad de Guardar el Contexto}
+
+Al entrar en una Rutina de Servicio de Interrupción (ISR), es \textbf{imprescindible} guardar el contexto del programa interrumpido por las siguientes razones técnicas:
+
+\subsection{Integridad del Estado del Procesador}
+\begin{itemize}
+\item Los registros del CPU contienen valores críticos del programa interrumpido
+\item Cualquier modificación durante la ISR corrompería el estado original
+\item Sin preservación, al retornar el programa se comportaría erráticamente
+\end{itemize}
+
+\subsection{Transparencia de la Interrupción}
+\begin{itemize}
+\item Las interrupciones deben ser transparentes al programa principal
+\item El programa no debe detectar que fue interrumpido (excepto por el retardo)
+\item Requiere que todos los registros mantengan sus valores originales
+\end{itemize}
+
+\subsection{Registros Críticos a Preservar}
+\begin{itemize}
+\item \textbf{Registros de propósito general} (\$t0-\$t9, \$a0-\$a3, etc.)
+\item \textbf{Registro de estado} (SR) - Contiene flags importantes
+\item \textbf{Contador de programa} (PC) - Guardado automáticamente en EPC
+\item \textbf{Registros de coprocesador} - Si son utilizados por el programa
+\end{itemize}
+
+\subsection{Mecanismos de Preservación}
+
+\subsection{Salvado Manual}
+En arquitecturas como MIPS32, el programador debe guardar explícitamente:
+\begin{itemize}
+\item Los registros que la ISR modificará
+\item El registro \$ra si usa llamadas a subrutinas
+\item Flags importantes del registro de estado
+\end{itemize}
+
+\subsection{Ejemplo en MIPS32}
+\begin{verbatim}
+ISR:
+    # Guardar contexto
+    sw $t0, save_t0
+    sw $t1, save_t1
+    mfc0 $k0, $12       # Leer Status
+    sw $k0, save_status
+    
+    # Cuerpo de la ISR
+    ...
+    
+    # Restaurar contexto
+    lw $k0, save_status
+    mtc0 $k0, $12       # Escribir Status
+    lw $t0, save_t0
+    lw $t1, save_t1
+    eret
+\end{verbatim}
+
+\subsection{Consecuencias de No Preservar}
+\begin{itemize}
+\item \textbf{Corrupción de datos}: Valores de registros se pierden
+\item \textbf{Fallos aleatorios}: Comportamiento no determinista
+\item \textbf{Problemas de reinicio}: El programa no puede continuar correctamente
+\item \textbf{Dificultad de depuración}: Errores difíciles de rastrear
+\end{itemize}
+
+\subsection{Consideraciones de Rendimiento}
+\begin{itemize}
+\item El salvado/restauración añade overhead (15-30 ciclos típicos)
+\item Se optimiza guardando solo los registros necesarios
+\item En sistemas críticos se usan registros dedicados para ISRs
+\item Arquitecturas modernas implementan salvado automático parcial
+\end{itemize}
+\section{Excepciones en Arquitectura MIPS32}
+\subsection{Situaciones Generadoras de Excepciones}
+
+En MIPS32, las excepciones pueden generarse en las siguientes situaciones:
+
+\begin{enumerate}
+    \item \textbf{Desbordamiento aritmético (Overflow)}:
+    \begin{itemize}
+        \item Ocurre en operaciones como \texttt{add}, \texttt{sub} cuando el resultado excede el rango representable
+        \item Ejemplo: $2^{31} + 2^{31}$ en enteros de 32 bits con signo
+    \end{itemize}
+
+    \item \textbf{Fallo de dirección (Address Error)}:
+    \begin{itemize}
+        \item Acceso a direcciones no alineadas (ej. \texttt{lw} en dirección no múltiplo de 4)
+        \item Acceso a memoria fuera del espacio direccionable
+    \end{itemize}
+
+    \item \textbf{Instrucción no implementada (Reserved Instruction)}:
+    \begin{itemize}
+        \item Intento de ejecutar un código de operación no definido
+        \item Ejecución de instrucción privilegiada en modo usuario
+    \end{itemize}
+
+    \item \textbf{Interrupción externa (Hardware Interrupt)}:
+    \begin{itemize}
+        \item Señal de dispositivos periféricos (timer, UART, etc.)
+        \item Requiere configuración previa en registros \texttt{Status} y \texttt{Cause}
+    \end{itemize}
+
+    \item \textbf{Fallo de página TLB (TLB Miss)}:
+    \begin{itemize}
+        \item Cuando la traducción de dirección virtual a física falla
+        \item Ocurre tanto en carga como en almacenamiento
+    \end{itemize}
+
+    \item \textbf{Breakpoint/Syscall}:
+    \begin{itemize}
+        \item Generadas deliberadamente por instrucciones \texttt{syscall} y \texttt{break}
+        \item Mecanismo para llamadas al sistema y depuración
+    \end{itemize}
+\end{enumerate}
+
+\subsection{Etapas del Pipeline y Excepciones}
+
+El pipeline de 5 etapas en MIPS32 puede generar excepciones en diferentes fases:
+
+\begin{enumerate}
+    \item \textbf{IF (Instruction Fetch)}:
+    \begin{itemize}
+        \item \texttt{TLB Miss} en acceso a memoria de instrucciones
+        \item \texttt{Bus Error} por fallo en lectura
+        \item \texttt{Address Error} por dirección no alineada
+    \end{itemize}
+
+    \item \textbf{ID (Instruction Decode)}:
+    \begin{itemize}
+        \item \texttt{Reserved Instruction} al decodificar opcode inválido
+        \item \texttt{Coprocessor Unavailable} para instrucciones de CP no habilitado
+    \end{itemize}
+
+    \item \textbf{EX (Execute)}:
+    \begin{itemize}
+        \item \texttt{Overflow} en operaciones aritméticas
+        \item \texttt{Integer Divide by Zero} en división
+        \item \texttt{Trap} en comparaciones condicionales
+    \end{itemize}
+
+    \item \textbf{MEM (Memory Access)}:
+    \begin{itemize}
+        \item \texttt{TLB Miss} en acceso a datos
+        \item \texttt{Bus Error} en escritura/lectura
+        \item \texttt{Address Error} por desalineamiento
+    \end{itemize}
+
+    \item \textbf{WB (Write Back)}:
+    \begin{itemize}
+        \item Normalmente no genera excepciones
+        \item Puede detectar \texttt{TLB Miss} retardado en algunas implementaciones
+    \end{itemize}
+\end{enumerate}
+
+\subsection{Jerarquía de Manejo}
+
+Cuando múltiples excepciones ocurren simultáneamente en diferentes etapas del pipeline, MIPS32 prioriza según:
+
+\begin{enumerate}
+    \item Excepciones de etapas tempranas (IF > ID > EX > MEM)
+    \item Dentro de la misma etapa, prioridad fija por tipo
+    \item El bit \texttt{EXL} en \texttt{Status} evite anidamiento no deseado
+\end{enumerate}
+\subsection{Diferencias entre Interrupciones y Excepciones}
+
+\begin{description}
+\item[Interrupciones:]
+\begin{itemize}
+    \item \textbf{Asíncronas}: Ocurren independientemente del flujo de ejecución del programa
+    \item Generadas por eventos externos al procesador (periféricos, timer, etc.)
+    \item Pueden habilitarse/deshabilitarse mediante el registro \texttt{Status}
+    \item Ejemplo: Llegada de datos por UART, fin de temporización
+\end{itemize}
+
+\item[Excepciones:]
+\begin{itemize}
+    \item \textbf{Síncronas}: Relacionadas directamente con la ejecución de instrucciones
+    \item Generadas por condiciones especiales durante la ejecución
+    \item No pueden deshabilitarse (siempre activas)
+    \item Ejemplo: Overflow, acceso inválido a memoria, instrucción no definida
+\end{itemize}
+\end{description}
+\section{Estrategias de Tratamiento de Excepciones e Interrupciones en MIPS32}
+\subsection{Estrategias para Tratar Excepciones en MIPS32}
+
+\subsection{1. Manejo mediante Vectores Fijos}
+\begin{itemize}
+    \item Todas las excepciones saltan a una dirección fija: \texttt{0x80000180} (kseg1)
+    \item La rutina principal lee el registro \texttt{Cause} para determinar la causa exacta
+    \item Ventaja: Simple y predecible
+    \item Desventaja: Requiere análisis secuencial de causas
+\end{itemize}
+
+\textbf{Flujo:}
+\begin{enumerate}
+    \item El hardware guarda automáticamente el PC en \texttt{EPC}
+    \item Salta a la dirección del vector fijo
+    \item Software consulta \texttt{Cause} y \texttt{BadVAddr} si aplica
+    \item Ejecuta la rutina específica
+    \item Retorna con \texttt{eret} (restaura PC desde \texttt{EPC})
+\end{enumerate}
+
+\subsection{2. Manejo mediante Tabla de Vectores}
+\begin{itemize}
+    \item Implementación común en versiones posteriores (MIPS64)
+    \item Diferentes causas saltan a direcciones distintas
+    \item Ventaja: Menor latencia en el manejo
+    \item Desventaja: Mayor complejidad hardware
+\end{itemize}
+
+\textbf{Flujo:}
+\begin{enumerate}
+    \item Hardware determina el vector según \texttt{ExcCode}
+    \item Salta a la dirección correspondiente en la tabla
+    \item No necesita análisis software inicial
+    \item Retorno igual con \texttt{eret}
+\end{enumerate}
+
+\subsection{Función del Registro EPC}
+El \textbf{Exception Program Counter (EPC)} cumple roles críticos:
+\begin{itemize}
+    \item Almacena la dirección de la instrucción que causó la excepción
+    \item En interrupciones, guarda la dirección de la \textbf{siguiente} instrucción a ejecutar
+    \item Permite reanudar la ejecución normal después del manejo
+    \item En excepciones recuperables (ej. TLB Miss), permite reintentar la instrucción
+    \item Su valor se restaura automáticamente con \texttt{eret}
+\end{itemize}
+
+\subsection{Ejemplo de Código}
+\begin{verbatim}
+.ktext 0x80000180    # Vector fijo
+    mfc0 $k0, $13    # Leer Cause
+    srl $k0, 2       # Aislar ExcCode
+    andi $k0, 0x1f
+    # Saltar a rutina según valor
+    eret             # Retornar
+\end{verbatim}
+\section{Habilitación de Interrupciones en Sistema MIPS32}
+\subsection{Habilitación de Interrupciones por Dispositivo}
+
+\subsection{Teclado}
+\begin{itemize}
+\item Se configura mediante el registro de control del controlador de teclado (ej. PS/2 o USB)
+\item Habilitación típica:
+  \begin{enumerate}
+  \item Escribir `1' en el bit de habilitación de interrupciones del registro de control del teclado
+  \item Configurar el vector de interrupción correspondiente en el controlador de interrupciones
+  \item Establecer prioridad si el controlador lo soporta
+  \end{enumerate}
+\item Ejemplo código:
+\begin{verbatim}
+li $t0, 0xFFFF0000   # Dirección base teclado
+li $t1, 0x00000002   # Bit 1 = Habilitar interrupción
+sw $t1, 0($t0)       # Escribir en registro de control
+\end{verbatim}
+\end{itemize}
+
+\subsection{Pantalla}
+\begin{itemize}
+\item Depende del controlador gráfico (ej. framebuffer)
+\item Pasos típicos:
+  \begin{enumerate}
+  \item Habilitar interrupción de refresco vertical (VSync)
+  \item Configurar dirección ISR en el controlador
+  \item Establecer máscara de interrupción
+  \end{enumerate}
+\item Ejemplo:
+\begin{verbatim}
+li $t0, 0xFFFF8000   # Dirección controlador video
+li $t1, 0x00000001   # Habilitar VSync interrupt
+sw $t1, 4($t0)       # Escribir en registro de control
+\end{verbatim}
+\end{itemize}
+
+\subsection{Habilitación en el Procesador}
+
+En MIPS32 se configuran los registros del Coprocesador 0:
+
+\begin{itemize}
+\item \textbf{Status Register (\$12)}:
+  \begin{itemize}
+  \item Bit 0 (IE): Interrupt Enable global (1=habilitado)
+  \item Bits 15-8 (IM): Máscara de interrupciones hardware (1=habilitar)
+  \item Bit 1 (EXL): Debe ser 0 para permitir interrupciones
+  \end{itemize}
+
+\item \textbf{Cause Register (\$13)}:
+  \begin{itemize}
+  \item Bits 15-8 (IP): Muestra interrupciones pendientes
+  \end{itemize}
+
+\item \textbf{Ejemplo de habilitación}:
+\begin{verbatim}
+mfc0 $t0, $12        # Leer Status
+ori $t0, 0x00000101   # IE=1, IM[0]=1 (habilitar int. 0)
+mtc0 $t0, $12        # Escribir Status
+\end{verbatim}
+\end{itemize}
+
+\subsection{Consecuencias de Habilitar Solo en Dispositivos}
+
+Si los dispositivos generan interrupciones pero el procesador no está configurado para atenderlas:
+
+\begin{itemize}
+\item \textbf{Señales perdidas}: Las interrupciones quedan pendientes en el registro \texttt{IP} (Cause)
+\item \textbf{Comportamiento indefinido}: Algunos controladores pueden saturar el bus
+\item \textbf{Contaminación de estado}: Los bits pendientes pueden afectar futuras interrupciones
+\item \textbf{Posible deadlock}: Dispositivos que esperan atención pueden bloquearse
+\end{itemize}
+
+\textbf{Solución}: Siempre seguir la secuencia:
+\begin{enumerate}
+\item Configurar manejadores (ISR)
+\item Habilitar interrupciones en dispositivos
+\item Finalmente habilitar globalmente en el procesador
+\end{enumerate}
+\section{Procesamiento de Interrupciones en MIPS32}
+\subsection{Proceso de Atención a Interrupción de Reloj}
+
+\subsection{Paso a Paso}
+\begin{enumerate}
+    \item \textbf{Generación de la interrupción}:
+    \begin{itemize}
+        \item El temporizador hardware alcanza el valor programado
+        \item El dispositivo de reloj activa la línea IRQ correspondiente
+    \end{itemize}
+
+    \item \textbf{Reconocimiento por el procesador}:
+    \begin{itemize}
+        \item El CPU completa la instrucción actual en ejecución
+        \item Establece el bit \texttt{IP[7]} en el registro \texttt{Cause}
+        \item Verifica que \texttt{IE=1} y \texttt{EXL=0} en \texttt{Status}
+    \end{itemize}
+
+    \item \textbf{Acciones del hardware}:
+    \begin{itemize}
+        \item Guarda automáticamente el PC en \texttt{EPC}
+        \item Establece \texttt{EXL=1} (nivel excepción)
+        \item Salta a la dirección del vector de interrupciones (\texttt{0x80000180} en MIPS32)
+    \end{itemize}
+
+    \item \textbf{Rutina de servicio (software)}:
+    \begin{itemize}
+        \item Guarda manualmente los registros que usará:
+\begin{verbatim}
+sw $at, 0($sp)
+sw $v0, 4($sp)
+sw $a0, 8($sp)
+# ... etc
+\end{verbatim}
+        \item Lee el registro \texttt{Cause} para confirmar la fuente
+        \item Atiende el dispositivo (reinicia el temporizador)
+        \item Restaura los registros guardados
+        \item Ejecuta \texttt{eret} (instrucción de retorno de excepción)
+    \end{itemize}
+
+    \item \textbf{Retorno (hardware)}:
+    \begin{itemize}
+        \item Restaura \texttt{PC} desde \texttt{EPC}
+        \item Limpia \texttt{EXL} (\texttt{EXL=0})
+        \item Reanuda ejecución del programa interrumpido
+    \end{itemize}
+\end{enumerate}
+
+\subsection{Registros Involucrados}
+\begin{itemize}
+    \item \textbf{Guardados automáticamente}:
+    \begin{itemize}
+        \item \texttt{EPC}: Contador de programa
+        \item \texttt{SR}: Registro de estado (solo \texttt{EXL} se modifica)
+    \end{itemize}
+
+    \item \textbf{Guardados manualmente}:
+    \begin{itemize}
+        \item Registros de propósito general (\texttt{\$at, \$v0, \$a0, etc.})
+        \item Registros del coprocesador si se usan
+        \item Registro \texttt{\$ra} si hay llamadas anidadas
+    \end{itemize}
+
+    \item \textbf{Restaurados automáticamente}:
+    \begin{itemize}
+        \item \texttt{PC} desde \texttt{EPC} (vía \texttt{eret})
+        \item \texttt{SR.EXL} se limpia
+    \end{itemize}
+\end{itemize}
+
+\subsection{Importancia de Guardar el Contexto}
+
+El salvado de contexto es crítico porque:
+
+\begin{itemize}
+    \item \textbf{Transparencia}: El programa interrumpido no debe percibir cambios en sus registros
+    \item \textbf{Consistencia}: Previene corrupción de datos entre rutinas
+    \item \textbf{Estado preciso}: Permite reanudación exacta de la ejecución
+    \item \textbf{Anidamiento}: Habilita el manejo de interrupciones durante otras interrupciones
+\end{itemize}
+
+\textbf{Consecuencias de no guardar contexto}:
+\begin{itemize}
+    \item Corrupción de registros usados por el programa principal
+    \item Comportamiento errático del sistema
+    \item Pérdida de datos críticos
+    \item Fallos difíciles de depurar
+\end{itemize}
+
+\subsection{Ejemplo Completo}
+\begin{verbatim}
+.ktext 0x80000180
+    # 1. Guardar contexto
+    sw $at, 0($sp)
+    sw $v0, 4($sp)
+    # ... (todos los registros a usar)
+
+    # 2. Atender interrupción
+    mfc0 $k0, $13       # Leer Cause
+    andi $k0, 0x8000    # Verificar bit 15 (Timer)
+    beqz $k0, not_timer
+    
+    # 3. Reiniciar timer
+    li $t0, 0xFFFF0010
+    lw $t1, 0($t0)      # Leer contador
+    addi $t1, 1000      # Nuevo valor
+    sw $t1, 0($t0)      # Escribir
+
+not_timer:
+    # 4. Restaurar contexto
+    lw $at, 0($sp)
+    lw $v0, 4($sp)
+    # ...
+
+    # 5. Retornar
+    eret
+\end{verbatim}
+\subsection{Interrupciones de Reloj y Control de Ejecución en MIPS32}
+\section{Uso de Interrupciones de Reloj}
+
+\subsection{Prevención de Bucles Infinitos}
+El sistema operativo puede configurar el temporizador hardware para generar interrupciones periódicas:
+
+\begin{itemize}
+\item \textbf{Configuración inicial}:
+\begin{verbatim}
+# Configurar intervalo del timer (ej. 10ms)
+li $t0, 0xFFFF0010   # Dirección del timer
+li $t1, 10000        # Valor inicial
+sw $t1, 0($t0)       # Escribir valor
+\end{verbatim}
+
+\item \textbf{Mecanismo de protección}:
+\begin{enumerate}
+\item El SO mantiene un contador por proceso
+\item En cada interrupción de reloj:
+\begin{verbatim}
+subi $s0, $s0, 1     # Decrementar contador
+blez $s0, kill_proc  # Si <=0, terminar proceso
+\end{verbatim}
+\item Si el contador llega a cero, se fuerza la terminación
+\end{enumerate}
+\end{itemize}
+
+\subsection{Limitación de Tiempo de Ejecución}
+Para programas con tiempo máximo definido:
+
+\begin{itemize}
+\item \textbf{Implementación típica}:
+\begin{enumerate}
+\item Asignar quantum de tiempo al cargar el proceso
+\item Programar el timer con el quantum
+\item En la ISR:
+\begin{verbatim}
+# Verificar si es el proceso actual
+lw $t2, current_pid
+bne $t2, $s1, skip
+# Forzar cambio de contexto
+jal scheduler
+skip:
+\end{verbatim}
+\end{enumerate}
+\end{itemize}
+
+\subsection{Manejo de Finalización Anticipada}
+
+Cuando un programa termina antes del intervalo del timer:
+
+\begin{enumerate}
+\item \textbf{Liberación de recursos}:
+\begin{itemize}
+\item El SO debe desprogramar el temporizador:
+\begin{verbatim}
+sw $zero, 0($t0)    # Detener timer
+\end{verbatim}
+\item Liberar el contador asociado al proceso
+\end{itemize}
+
+\item \textbf{Optimizaciones}:
+\begin{itemize}
+\item Reutilizar el quantum restante para otros procesos
+\item Actualizar estadísticas de uso de CPU
+\item Notificar al planificador para inmediata reasignación
+\end{itemize}
+
+\item \textbf{Caso especial - Syscall exit}:
+\begin{verbatim}
+# En handler de syscall:
+li $v0, 10         # Código de exit
+# ... limpieza ...
+sw $zero, 0($t0)   # Desactivar timer
+jr $ra             # Retornar al scheduler
+\end{verbatim}
+\end{enumerate}
+
+\subsection{Consideraciones de Implementación}
+
+\begin{itemize}
+\item \textbf{Sincronización}: El SO debe proteger estructuras de datos compartidas con el ISR
+\item \textbf{Overhead}: Balancear frecuencia de interrupciones vs. responsividad
+\item \textbf{Prioridades}: Asignar adecuadamente la prioridad del timer
+\item \textbf{Recuperación}: Manejar adecuadamente el caso donde el ISR es interrumpido
+\end{itemize}
+\end{document}
